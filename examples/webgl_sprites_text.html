@@ -25,7 +25,8 @@
 	</head>
 	<body>
 
-		<div id="info"><a href="http://threejs.org" target="_blank" rel="noopener">three.js</a> - SpriteText</div>
+		<div id="info"><a href="http://threejs.org" target="_blank" rel="noopener">three.js</a> - SpriteText
+		by <a href="https://github.com/anhr" target="_blank" rel="noopener">anhr</a></div>
 
 		<script src="https://threejs.org/build/three.js"></script>
 		<script src="https://threejs.org/examples/js/controls/OrbitControls.js"></script>
@@ -60,15 +61,15 @@
 
 				// camera
 
-				camera = new THREE.PerspectiveCamera( 40, window.innerWidth / window.innerHeight, 1, 1000 );
+				camera = new THREE.PerspectiveCamera( 70, window.innerWidth / window.innerHeight, 1, 1000 );
 				camera.position.set( 15, 20, 30 );
 				scene.add( camera );
 
 				// controls
 
 				var controls = new THREE.OrbitControls( camera, renderer.domElement );
-				controls.minDistance = 20;
-				controls.maxDistance = 50;
+				controls.minDistance = 25;
+				controls.maxDistance = 75;
 				controls.maxPolarAngle = Math.PI / 2;
 
 				scene.add( new THREE.AmbientLight( 0x222222 ) );
@@ -88,8 +89,7 @@
 
 				// points
 
-				var vertices = new THREE.CubeGeometry( 10, 10, 10 ).vertices;
-
+				var vertices = new THREE.CubeGeometry( 20, 20, 20 ).vertices;
 				var pointsMaterial = new THREE.PointsMaterial( {
 
 					color: 0x0080ff,
@@ -127,30 +127,19 @@
 
 				//spriteText
 
+				scene.add( new THREE.SpriteText( 'Default SpriteText' ) );
+
 				//anchor
-				var anchorVertices = [new THREE.Vector3( 5, 1, 1 )];
+				var anchorVertices = [ new THREE.Vector3( 10, 2, 2 ) ];
 				group.add( new THREE.Points( new THREE.BufferGeometry().setFromPoints( anchorVertices ),
 					new THREE.PointsMaterial( { color: 0xff0000, map: texture, size: 1, alphaTest: 0.5 } ) ) );
 
 				this.rect = false;
-				/*
-								function updateRect() {
-									if (this.rect)
-										spriteTextOptions.rect = {
-											borderThickness: 3,
-											borderRadius: 0,
-											borderColor: 'rgb(255, 0, 0)',//'#FF0000',//'rgba(255, 0, 0, 1)',//red
-											backgroundColor: 'rgba(0, 0, 255, 1)',//blue
-										};
-									else delete spriteTextOptions.rect;
-								}
-				*/
-				var fontFaces = ['Arial', 'Verdana', 'Times'],
-					spriteTextOptions = {
-						text: 'Hello world!',
+				var fontFaces = [ 'Arial', 'Verdana', 'Times' ],
+					spriteText = new THREE.SpriteText( 'Hello world!', {
 						position: anchorVertices[0],
 						fontColor: 'rgba(0, 255, 0, 1)', //green
-						textHeight: 1,
+						textHeight: 2,
 						fontFace: fontFaces[0],
 						fontFaces: fontFaces,
 						center: new THREE.Vector2( 0.5, 0.5 ),
@@ -158,28 +147,32 @@
 						italic: false,
 						fontProperties: '',
 						rect: {
-							//displayRect: true,
+							displayRect: false,
 							borderThickness: 3,
 							borderRadius: 0,
 							borderColor: 'rgb(255, 0, 0)', //'#FF0000',//'rgba(255, 0, 0, 1)',//red
 							backgroundColor: 'rgba(0, 0, 255, 1)', //blue
 						},
-					},
-					spriteText = null;
-				function addSpriteText() {
+						cookie: THREE.cookie,
+					} );
+				scene.add( spriteText );
 
-					scene.remove( spriteText );
-					//					updateRect();
-					spriteText = new THREE.SpriteText( spriteTextOptions );
-					scene.add( spriteText );
-
-				}
-				addSpriteText();
+				var arrayOptions = { textHeight: 2 },
+					arraySpriteText = [
+						new THREE.SpriteText( 'Array item 1', { position: new THREE.Vector3( -10, 4, 2 ), textHeight: arrayOptions.textHeight } ),
+						new THREE.SpriteText( 'Array item 2', { position: new THREE.Vector3( -10, 1, 2 ), textHeight: arrayOptions.textHeight } ),
+					];
+				arraySpriteText.forEach( function ( item ) { scene.add( item ); } );
 
 				//
 
-				var optionsStereoEffect = { spatialMultiplex: THREE.StereoEffectParameters.spatialMultiplexsIndexs.Mono, };
-				effect = new THREE.StereoEffect( renderer, optionsStereoEffect );
+				effect = new THREE.StereoEffect( renderer, {
+
+					spatialMultiplex: THREE.StereoEffectParameters.spatialMultiplexsIndexs.Mono,
+					far: camera.far,
+					camera: camera,
+
+				} );
 				effect.setSize( window.innerWidth, window.innerHeight );
 
 				//dat-gui JavaScript Controller Library
@@ -187,24 +180,16 @@
 				var gui = new dat.GUI();
 
 				//SpriteText settings
-				THREE.gui.spriteText( gui, spriteText, spriteTextOptions
-					, { getLanguageCode: THREE.getLanguageCode, }
-				);
+				THREE.gui.spriteText( gui, spriteText, { getLanguageCode: THREE.getLanguageCode, } );
+				THREE.gui.spriteText( gui, arraySpriteText, { spriteFolder: 'Sprite Array' }, arrayOptions );
 
 				//cube settings
 				var fCube = gui.addFolder( 'cube' );
-				fCube.add( meshMaterial, 'transparent' ).onChange( function ( value ) {
+				fCube.add( meshMaterial, 'transparent' );
+				fCube.add( meshMaterial, 'depthTest' );
 
-					meshMaterialClone.transparent = value;
-
-				} );
-				fCube.add( meshMaterial, 'depthTest' ).onChange( function ( value ) {
-
-					meshMaterialClone.depthTest = value;
-
-				} );
-
-				THREE.gui.stereoEffect( gui, optionsStereoEffect, { getLanguageCode: THREE.getLanguageCode, } );
+				//StereoEffect settings
+				THREE.gui.stereoEffect( gui, effect.options, { getLanguageCode: THREE.getLanguageCode, } );
 
 				//
 

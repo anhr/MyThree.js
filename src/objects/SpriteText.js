@@ -5,9 +5,9 @@
 //Attenttion!!! Save this file as UTF-8 for localization
 
 //A sprite based text component.
+//text: The text to be displayed on the sprite.
 //options:
 //{
-//	text: The text to be displayed on the sprite. Default is 'Sprite Text'
 //	position: THREE.Vector3 - position of the text. Default is new THREE.Vector3(0,0,0)
 //	textHeight: The height of the text. Default is 1
 //	fontFace: CSS font-family - specifies the font of the text. Default is 'Arial'
@@ -18,7 +18,7 @@
 //	italic: CSS font-style. Default is false.
 //	fontProperties: string. Other font properties. The font property uses the same syntax as the CSS font property.
 //		Default is empty string. Example "900", "oblique lighter".
-//	center: THREE.Vector2 - The text's anchor point, and the point around which the text rotates.
+//	center: THREE.Vector2 - The text's anchor point.
 //		A value of (0.5, 0.5) corresponds to the midpoint of the text.
 //		A value of (0, 0) corresponds to the left lower corner of the text.
 //		A value of (0, 1) corresponds to the left upper corner of the text.
@@ -34,20 +34,64 @@
 //	}
 //}
 //Thanks to / https://github.com/vasturiano/three-spritetext
-THREE.SpriteText = function ( options ) {
+THREE.SpriteText = function ( text, options ) {
 
 	var sprite = new THREE.Sprite( new THREE.SpriteMaterial( { map: new THREE.Texture() } ) );
 
 	options = options || {};
-	options.text = options.text || 'Sprite Text';
+	sprite.options = options;
+	if ( options.cookie === undefined )
+		options.cookie = function ( name ) {
+
+			this.get = function ( defaultValue ) {
+
+				// Default cookie is not loading settings
+				return defaultValue;
+
+			};
+
+			this.set = function () {
+
+				// Default cookie is not saving settings
+
+			};
+
+			this.isTrue = function ( defaultValue ) {
+
+				return defaultValue;
+
+			};
+
+		};
+	options.text = text;//options.text || new options.cookie( 'SpriteText' ).get( 'Sprite Text' );
 	options.position = options.position || new THREE.Vector3( 0, 0, 0 );
 	options.textHeight = options.textHeight || 1;
-	options.fontFace = options.fontFace || 'Arial';
-	options.fontColor = options.fontColor || 'rgba(255, 255, 255, 1)';
+	options.fontFace = options.fontFace || 'Arial'; 
 	options.bold = options.bold || false;
 	options.italic = options.italic || false;
 	options.fontProperties = options.fontProperties || '';
+	options.rect = options.rect || {};
+	options.rect.displayRect = options.rect.displayRect || false;
+	options.fontColor = options.fontColor || 'rgba(255, 255, 255, 1)';
 	options.center = options.center || new THREE.Vector2( 0, 1 );
+
+	//Default options
+	options.optionsDefault = Object.assign( {}, options ),
+	options.optionsDefault.center = Object.assign( {}, options.center );
+	options.optionsDefault.rect = Object.assign( {}, options.rect );
+
+	options.text = new options.cookie( 'text' ).get( options.text );
+	options.textHeight = parseFloat( new options.cookie( 'textHeight' ).get( options.textHeight ) );
+	if ( isNaN( options.textHeight ) ) options.textHeight = 1;
+	options.fontFace = new options.cookie( 'fontFace' ).get( options.fontFace );
+//	options.bold = new options.cookie( 'bold' ).get( options.bold ) === 'false' ? false : true;
+	options.bold = new options.cookie( 'bold' ).isTrue( options.bold );
+	options.italic = new options.cookie( 'italic' ).isTrue( options.italic );
+	options.fontProperties = new options.cookie( 'fontProperties' ).get( options.fontProperties );
+	options.rect.displayRect = new options.cookie( 'displayRect' ).isTrue( options.rect.displayRect );
+	//options.rect = JSON.parse( new options.cookie( 'rect' ).get( JSON.stringify( options.rect ) ) );
+	options.fontColor = new options.cookie( 'fontColor' ).get( options.fontColor );
+	options.center = JSON.parse( new options.cookie( 'center' ).get( JSON.stringify( options.center ) ) );
 
 	var canvas = document.createElement( 'canvas' );
 	sprite.material.map.minFilter = THREE.LinearFilter;
@@ -75,8 +119,6 @@ THREE.SpriteText = function ( options ) {
 		//Rect
 		//Thanks to http://stemkoski.github.io/Three.js/Sprite-Text-Labels.html
 
-		options.rect = options.rect || {};
-		options.rect.displayRect = options.rect.displayRect || false;
 		var borderThickness = options.rect.borderThickness || 5;
 		if ( options.rect.displayRect ) {
 
@@ -144,7 +186,6 @@ THREE.SpriteText = function ( options ) {
 //See src\objects\SpriteText.js for SpriteText details
 //gui: see https://github.com/dataarts/dat.gui/blob/master/API.md for details
 //sprite: sprite with text component or array of sprites
-//options: options of the SpriteText.
 //guiParams:
 //{
 //	getLanguageCode: Your custom getLanguageCode() function.
@@ -155,60 +196,125 @@ THREE.SpriteText = function ( options ) {
 //	cookie: Your custom setCookie function for saving of the SpriteText settings
 //	lang: Object with localized language values
 //	parentFolder:
+//	spriteFolder: sprite folder name. Default is lang.spriteText
 //}
-THREE.gui.spriteText = function ( gui, sprite, options, guiParams ) {
+//options: options of the SpriteText.
+THREE.gui.spriteText = function ( gui, sprite, guiParams, options ) {
+
+	if ( options === undefined ) options = sprite.options;
+	if ( options.optionsDefault === undefined ) {
+
+		if ( Array.isArray( sprite ) )
+			options.optionsDefault = sprite[0].options.optionsDefault;
+		else console.error( 'THREE.gui.spriteText: options.optionsDefault is undefined.' );
+
+	}
 
 	guiParams = guiParams || {};
 
-	// Default cookie is not saving settings
-	// name: name of current setting
-	function cookie( name ) {
+	if ( options.cookie === undefined )
+		options.cookie = function () {
 
-		this.set = function ( value ) { };
+			this.get = function ( defaultValue ) {
 
-	}
-	if ( guiParams.cookie !== undefined ) cookie = guiParams.cookie;
+				// Default cookie is not loading settings
+				return defaultValue;
+
+			};
+
+			this.set = function () {
+
+				// Default cookie is not saving settings
+
+			};
+
+			this.isTrue = function ( defaultValue ) {
+
+				return defaultValue;
+
+			};
+
+		};
 
 	//Localization
-
-	function getLanguageCode() {
-
-		return 'en';//Default language is English
-
-	}
-	if ( guiParams.getLanguageCode !== undefined ) getLanguageCode = guiParams.getLanguageCode;
 
 	var lang = {
 		spriteText: 'Sprite Text',
 
+		text: 'Text',
+		textTitle: 'The text to be displayed on the sprite.',
+
 		textHeight: 'Height',
 		textHeightTitle: 'Text Height.',
 
+		fontFace: 'Font Face',
+		fontFaceTitle: 'Choose text font.',
+
+		bold: 'Bold',
+
+		italic: 'Italic',
+
+		fontProperties: 'Font Properties',
+		fontPropertiesTitle: 'Other font properties. The font property uses the same syntax as the CSS font property.',
+
+		fontStyle: 'Font Style',
+		fontStyleTitle: 'Text style being used when drawing text. Read only.',
+
 		displayRect: 'Rect',
 		displayRectTitle: 'Display a rectangle around the text.',
+
+		fontColor: 'Font Color',
+
+		anchor: 'Anchor',
+		anchorTitle: 'The text anchor point.',
 
 		defaultButton: 'Default',
 		defaultTitle: 'Restore default Sprite Text settings.',
 
 	};
 
-	var languageCode = getLanguageCode();
-	switch ( languageCode ) {
+	var _languageCode = guiParams.getLanguageCode === undefined ? function () {
+
+		return 'en';//Default language is English
+
+	} : guiParams.getLanguageCode();
+	switch ( _languageCode ) {
 
 		case 'ru'://Russian language
 			lang.spriteText = 'Текстовый спрайт';//'Sprite Text'
 
+			lang.text = 'Текст';
+			lang.textTitle = 'Текст, который будет отображен в спрайте.';
+
 			lang.textHeight = 'Высота';
 			lang.textHeightTitle = 'Высота текста.';
 
+			lang.fontFace = 'Имя шрифта';
+			lang.fontFaceTitle = 'Выберите шрифта текста.';
+
+			lang.bold = 'Жирный';
+
+			lang.italic = 'Наклонный';
+
+			lang.fontProperties = 'Дополнительно';
+			lang.fontPropertiesTitle = 'Дополнительные свойства шрифта. Свойство шрифта использует тот же синтаксис, что и свойство шрифта CSS.';
+
+			lang.fontStyle = 'Стиль шрифта';
+			lang.fontStyleTitle = 'Стиль шрифта, используемый при рисовании текста. Не редактируется.';
+
 			lang.displayRect = 'Прямоугольник';
 			lang.displayRectTitle = 'Отобразить прямоугольник вокруг текста.';
+
+			lang.fontColor = 'Цвет шрифта';
+
+			lang.anchor = 'Якорь';
+			lang.anchorTitle = 'Точка привязки текста.';
 
 			lang.defaultButton = 'Восстановить';
 			lang.defaultTitle = 'Восстановить настройки текстового спрайта по умолчанию.';
 			break;
 		default://Custom language
-			if ( ( guiParams.lang === undefined ) || ( guiParams.lang.languageCode != languageCode ) )
+			if ( ( guiParams.lang === undefined ) || ( guiParams.lang.languageCode != _languageCode ) )
 				break;
 
 			Object.keys( guiParams.lang ).forEach( function ( key ) {
@@ -246,112 +352,167 @@ THREE.gui.spriteText = function ( gui, sprite, options, guiParams ) {
 	if ( ! guiParams.hasOwnProperty( 'parentFolder' ) )
 		guiParams.parentFolder = gui;
 
-	var fSpriteText = guiParams.parentFolder.addFolder( lang.spriteText );//'Sprite Text'
+	//Sprite folder
+	var fSpriteText = guiParams.parentFolder.addFolder( guiParams.spriteFolder || lang.spriteText );//'Sprite Text'
 
+	//Sprite text
 	if ( options.hasOwnProperty( 'text' ) )
-		fSpriteText.add( options, 'text' ).onChange( function ( value ) {
-
-			updateSpriteText();
-
-		} );
-	if ( options.hasOwnProperty( 'textHeight' ) )
 		dat.controllerNameAndTitle(
-			fSpriteText.add( options, 'textHeight', options.textHeight / 10, options.textHeight * 10 ).onChange( function ( value ) {
+			fSpriteText.add( options, 'text' ).onChange( function ( value ) {
 
 				updateSpriteText();
+				new options.cookie( 'text' ).set( value );
 
-			} ),
-			lang.textHeight, lang.textHeightTitle
-		);
+			} ), lang.text, lang.textTitle );
 
+	//Sprite text height
+	if ( options.hasOwnProperty( 'textHeight' ) ) {
+
+		var textHeightDefault = options.optionsDefault.textHeight;
+		dat.controllerNameAndTitle(
+			fSpriteText.add( options, 'textHeight', textHeightDefault / 10, textHeightDefault * 10, textHeightDefault / 10 ).onChange( function ( value ) {
+
+				updateSpriteText();
+				new options.cookie( 'textHeight' ).set( value );
+
+			} ), lang.textHeight, lang.textHeightTitle );
+
+	}
+
+	//font faces
 	if ( options.fontFaces !== undefined )
-		fSpriteText.add( options, 'fontFace', options.fontFaces ).onChange( function ( value ) {
+		dat.controllerNameAndTitle(
+			fSpriteText.add( options, 'fontFace', options.fontFaces ).onChange( function ( value ) {
 
-			updateSpriteText();
+				updateSpriteText();
+				new options.cookie( 'fontFace' ).set( value );
 
-		} );
-
+			} ), lang.fontFace, lang.fontFaceTitle );
+	
+	//bold
 	if ( options.hasOwnProperty( 'bold' ) )
-		fSpriteText.add( options, 'bold' ).onChange( function ( value ) {
+		dat.controllerNameAndTitle(
+			fSpriteText.add( options, 'bold' ).onChange( function ( value ) {
 
-			updateSpriteText();
+				updateSpriteText();
+				new options.cookie( 'bold' ).set( value );
 
-		} );
+			} ), lang.bold );
+
+	//italic
 	if ( options.hasOwnProperty( 'italic' ) )
-		fSpriteText.add( options, 'italic' ).onChange( function ( value ) {
+		dat.controllerNameAndTitle(
+			fSpriteText.add( options, 'italic' ).onChange( function ( value ) {
 
-			updateSpriteText();
+				updateSpriteText();
+				new options.cookie( 'italic' ).set( value );
 
-		} );
+			} ), lang.italic );
 
+	//font properties
 	if ( options.hasOwnProperty( 'fontProperties' ) )
-		fSpriteText.add( options, 'fontProperties' ).onChange( function ( value ) {
+		dat.controllerNameAndTitle(
+			fSpriteText.add( options, 'fontProperties' ).onChange( function ( value ) {
 
-			updateSpriteText();
+				updateSpriteText();
+				new options.cookie( 'fontProperties' ).set( value );
 
-		} );
+			} ), lang.fontProperties, lang.fontPropertiesTitle );
 
+	//font style
 	if ( options.hasOwnProperty( 'font' ) ) {
 
 		var controllerFont = fSpriteText.add( options, 'font' );
 		controllerFont.__input.readOnly = true;
+		dat.controllerNameAndTitle( controllerFont, lang.fontStyle, lang.fontStyleTitle );
 
 	}
 
+	//text rectangle
 	if ( ( options.hasOwnProperty( 'rect' ) ) && ( options.rect.hasOwnProperty( 'displayRect' ) ) )
 		dat.controllerNameAndTitle( fSpriteText.add( options.rect, 'displayRect' ).onChange( function ( value ) {
 
 			updateSpriteText();
+			new options.cookie( 'displayRect' ).set( value );
+//			new options.cookie( 'rect' ).set( JSON.stringify( options.rect ) );
 
 		} ), lang.displayRect, lang.displayRectTitle );
 
+	//font сolor
 	if ( options.hasOwnProperty( 'fontColor' ) )
-		fSpriteText.addColor( options, 'fontColor' ).onChange( function ( value ) {
+		dat.controllerNameAndTitle( fSpriteText.addColor( options, 'fontColor' ).onChange( function ( value ) {
 
 			updateSpriteText();
+			new options.cookie( 'fontColor' ).set( value );
 
-		} );
+		} ), lang.fontColor );
 
 	if ( options.hasOwnProperty( 'center' ) ) {
 
-		var fAnchor = fSpriteText.addFolder( 'Anchor' );
+		//anchor
+		var fAnchor = fSpriteText.addFolder( 'center' );
+		dat.folderNameAndTitle( fAnchor, lang.anchor, lang.anchorTitle );
+
+		//anchor x
 		fAnchor.add( options.center, 'x', 0, 1, 0.1 ).onChange( function ( value ) {
 
 			updateSpriteText();
+			new options.cookie( 'center' ).set( JSON.stringify( options.center ) );
 
 		} );
+
+		//anchor y
 		fAnchor.add( options.center, 'y', 0, 1, 0.1 ).onChange( function ( value ) {
 
 			updateSpriteText();
+			new options.cookie( 'center' ).set( JSON.stringify( options.center ) );
 
 		} );
 
 	}
 
 	//default button
-	var optionsDefault = Object.assign( {}, options ),
+	var optionsDefault = options.optionsDefault,
 		defaultParams = {
 			defaultF: function ( value ) {
 
-				Object.keys( optionsDefault ).forEach( function ( key ) {
+				function setValues( folder, key, optionsDefault ) {
 
-					fSpriteText.__controllers.forEach( function ( controller ) {
+					folder.__controllers.forEach( function ( controller ) {
 
-						if ( controller.property != key ) {
+						if ( controller.property !== key ) {
 
-							if ( typeof optionsDefault[ key ] != "object" )
+							if ( typeof optionsDefault[ key ] !== "object" )
 								return;
-							Object.keys( optionsDefault[ key ] ).forEach( function ( key ) {
+							Object.keys( optionsDefault[ key ] ).forEach( function ( optionKey ) {
 
-								if ( controller.property != key )
+								if ( controller.property !== optionKey )
 									return;
-								controller.setValue( optionsDefault[ key ] );
+								controller.setValue( optionsDefault[ key ][ optionKey ] );
 
 							} );
 							return;
 
 						}
-						controller.setValue( optionsDefault[ key ] );
+						controller.setValue( optionsDefault[key] );
+
+					} );
+
+				}
+
+				Object.keys( optionsDefault ).forEach( function ( key ) {
+
+					setValues( fSpriteText, key, optionsDefault );
+
+					Object.keys( fSpriteText.__folders ).forEach( function ( keyFolder ) {
+
+						if ( keyFolder !== key )
+							return;
+						Object.keys( optionsDefault[keyFolder] ).forEach( function ( key ) {
+
+							setValues( fSpriteText.__folders[keyFolder], key, optionsDefault[keyFolder] );
+
+						} );
 
 					} );
 
@@ -360,6 +521,7 @@ THREE.gui.spriteText = function ( gui, sprite, options, guiParams ) {
 			},
 
 		};
+//	optionsDefault.center = Object.assign( {}, optionsDefault.center );
 	dat.controllerNameAndTitle( fSpriteText.add( defaultParams, 'defaultF' ), lang.defaultButton, lang.defaultTitle );
 
 };

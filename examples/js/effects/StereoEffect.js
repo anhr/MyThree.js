@@ -47,7 +47,7 @@ THREE.StereoEffectParameters = {
 //		See http://paulbourke.net/papers/vsmm2007/stereoscopy_workshop.pdf for details.
 //		Default is THREE.StereoEffectParameters.zeroParallaxDefault
 //	camera: THREE.PerspectiveCamera. Use the camera key if you want control cameras focus.
-//	far: Camera frustum far plane. The far key uses for correct calculation default values of Eye separation and Focus. Default is 10.
+//	far: Camera frustum far plane. The far key uses for correct calculation default values of Eye separation. Default is 10.
 //	cookie: Your custom cookie function for saving and loading of the StereoEffects settings.
 //}
 THREE.StereoEffect = function ( renderer, options ) {
@@ -76,22 +76,18 @@ THREE.StereoEffect = function ( renderer, options ) {
 		};
 	if ( options.spatialMultiplex === undefined )
 		options.spatialMultiplex = new options.cookie( 'spatialMultiplex' ).get( THREE.StereoEffectParameters.spatialMultiplexsIndexs.SbS );//Use 'Side by side' for compability with previous version of THREE.StereoEffect
-	if ( options.camera !== undefined )
-		options.camera.focus = parseInt( new options.cookie( 'cameraFocus' ).get( new THREE.PerspectiveCamera().focus ) );
 	if ( options.zeroParallax === undefined )
 		options.zeroParallax = parseInt( new options.cookie( 'zeroParallax' ).get( THREE.StereoEffectParameters.zeroParallaxDefault ) );
 	if ( options.far === undefined )
-		options.far = 10;
+		options.far = new THREE.PerspectiveCamera().focus;
 	options.eyeSep = function () {
 
 		return ( new THREE.StereoCamera().eyeSep / 10 ) * options.far;
 
 	};
-	options.defaultFocus = function () {
-
-		return ( 6990 / 999 ) * ( options.far / 10 ) + 10 - 6990 / 999;
-
-	};
+	options.focus = options.camera === undefined ? new THREE.PerspectiveCamera().focus : new THREE.Vector3().distanceTo( options.camera.position );
+	if ( options.camera !== undefined )
+		options.camera.focus = parseInt( new options.cookie( 'cameraFocus' ).get( options.focus ) );
 
 	options.stereo.eyeSep = ( new options.cookie( 'eyeSeparation' ).get( options.eyeSep() ) * 10000 ) / 10000;
 
@@ -191,13 +187,6 @@ THREE.gui.stereoEffect = function ( gui, options, guiParams ) {
 	if ( guiParams === undefined ) guiParams = {};
 	guiParams.scale = guiParams.scale || 1;
 
-	function getLanguageCode() {
-
-		return 'en';//Default language is English
-
-	}
-	if ( guiParams.getLanguageCode !== undefined ) getLanguageCode = guiParams.getLanguageCode;
-
 	//Localization
 
 	var _lang = {
@@ -226,7 +215,11 @@ THREE.gui.stereoEffect = function ( gui, options, guiParams ) {
 
 	};
 
-	var _languageCode = getLanguageCode();
+	var _languageCode = guiParams.getLanguageCode === undefined ? function () {
+
+		return 'en';//Default language is English
+
+	} : guiParams.getLanguageCode();
 	switch ( _languageCode ) {
 
 		case 'ru'://Russian language
@@ -311,7 +304,7 @@ THREE.gui.stereoEffect = function ( gui, options, guiParams ) {
 	if ( options.camera ) {
 
 		_controllerCameraFocus = _fStereoEffects.add( options.camera, 'focus',
-			options.defaultFocus() / 10, options.defaultFocus() * 2, options.defaultFocus() / 10 )
+			options.focus / 10, options.focus * 2, options.focus / 1000 )
 			.onChange( function ( value ) {
 
 				new options.cookie( 'cameraFocus' ).set( value );
@@ -341,7 +334,7 @@ THREE.gui.stereoEffect = function ( gui, options, guiParams ) {
 
 			if ( options.camera ) {
 
-				options.camera.focus = options.defaultFocus();
+				options.camera.focus = options.focus;
 				_controllerCameraFocus.setValue( options.camera.focus );
 
 				options.zeroParallax = THREE.StereoEffectParameters.zeroParallaxDefault;
@@ -432,6 +425,20 @@ if ( THREE.cookie === undefined ) {
 
 		};
 
+		// Saving settings.
+		// value: current setting
+		this.set = function ( value ) {
+
+			if ( ! this.isCookieEnabled() )
+				return;
+
+			var _cookieDate = new Date();
+			_cookieDate.setTime( _cookieDate.getTime() + 1000 * 60 * 60 * 24 * 365 );//One year of expiry period
+			document.cookie = name + "=" + value.toString() + "; expires=" + _cookieDate.toGMTString();
+			return;
+
+		};
+
 		// Loading settings, saved by THREE.cookie.set
 		// defaultValue: default setting
 		this.get = function ( defaultValue ) {
@@ -448,17 +455,17 @@ if ( THREE.cookie === undefined ) {
 
 		};
 
-		// Saving settings.
-		// value: current setting
-		this.set = function ( value ) {
+		this.isTrue = function ( defaultValue ) {
 
-			if ( ! this.isCookieEnabled() )
-				return;
+			switch ( this.get() ) {
 
-			var _cookieDate = new Date();
-			_cookieDate.setTime( _cookieDate.getTime() + 1000 * 60 * 60 * 24 * 365 );//One year of expiry period
-			document.cookie = name + "=" + value.toString() + "; expires=" + _cookieDate.toGMTString();
-			return;
+				case 'true':
+					return true;
+				case 'false':
+					return false;
+
+			}
+			return defaultValue;
 
 		};
 
@@ -471,17 +478,32 @@ if ( typeof dat !== 'undefined' ) {
 	//dat.GUI is included into current project
 	//See https://github.com/dataarts/dat.gui/blob/master/API.md about dat.GUI API.
 
+	function elNameAndTitle( el, name, title ) {
+
+		el.innerHTML = name;
+		if ( title !== undefined )
+			el.title = title;
+
+	}
+
 	if ( dat.controllerNameAndTitle === undefined ) {
 
 		dat.controllerNameAndTitle = function ( controller, name, title ) {
 
-			var _elPropertyName = controller.__li.querySelector( ".property-name" );
-			_elPropertyName.innerHTML = name;
-			if ( title !== undefined )
-				_elPropertyName.title = title;
+			elNameAndTitle( controller.__li.querySelector( ".property-name" ), name, title );
 
 		};
 
 	} else console.error( 'Duplicate dat.controllerNameAndTitle method' );
+
+	if ( dat.folderNameAndTitle === undefined ) {
+
+		dat.folderNameAndTitle = function ( folder, name, title ) {
+
+			elNameAndTitle( folder.__ul.querySelector( "li.title" ), name, title );
+
+		};
+
+	} else console.error( 'Duplicate dat.folderNameAndTitle method' );
 
 }
